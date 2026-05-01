@@ -1,5 +1,5 @@
 import { Check, X, HelpCircle } from 'lucide-react';
-import { PlanStatus } from '../types/plan';
+import type { PlanStatus } from '../types/plan';
 
 interface ActionButtonsProps {
   status: PlanStatus;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Instagram, MapPin, ExternalLink, Globe } from 'lucide-react';
-import { getLinkType, mockFetchOpenGraph, LinkMetadata } from '../utils/linkParser';
+import { Camera, MapPin, ExternalLink, Globe } from 'lucide-react';
+import { getLinkType, mockFetchOpenGraph } from '../utils/linkParser';
+import type { LinkMetadata } from '../utils/linkParser';
 
 interface LinkPreviewProps {
   url: string;
@@ -64,7 +65,7 @@ export const LinkPreview = ({ url }: LinkPreviewProps) => {
                 className="w-20 h-20 object-cover rounded-xl shadow-sm"
               />
               <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
-                <Instagram size={12} className="text-white" />
+                <Camera size={12} className="text-white" />
               </div>
             </div>
             <div className="flex-1 min-w-0">

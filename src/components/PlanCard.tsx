@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { MapPin, Clock, MessageCircleQuestion } from 'lucide-react';
-import { Plan, PlanStatus } from '../types/plan';
+import type { Plan, PlanStatus } from '../types/plan';
 import { ActionButtons } from './ActionButtons';
 import { LinkPreview } from './LinkPreview';
 

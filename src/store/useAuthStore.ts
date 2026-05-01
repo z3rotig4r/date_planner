@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabaseClient';
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 interface Profile {
   id: string;

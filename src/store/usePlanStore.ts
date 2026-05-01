@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Plan, PlanStatus } from '../types/plan';
+import type { Plan, PlanStatus } from '../types/plan';
 import { supabase } from '../services/supabaseClient';
 import { useAuthStore } from './useAuthStore';
 
