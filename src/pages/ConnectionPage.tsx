@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Link2, LogOut, Check } from 'lucide-react';
+import { Copy, Link2, LogOut, Check, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const ConnectionPage = () => {
   const [partnerCode, setPartnerCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { profile, connectWithPartner, signOut } = useAuthStore();
+  const { profile, loading: authLoading, initialize, connectWithPartner, signOut } = useAuthStore();
 
   const handleCopy = () => {
     if (profile?.invite_code) {
@@ -46,18 +46,38 @@ export const ConnectionPage = () => {
           {/* My Code Section */}
           <div className="glass-card p-8 rounded-[32px] flex flex-col items-center text-center">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">내 초대 코드</p>
-            <div className="text-3xl font-black tracking-widest text-primary-coral mb-6">
-              {profile?.invite_code || '------'}
-            </div>
-            <button
-              onClick={handleCopy}
-              className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
-                copied ? 'bg-emerald-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              {copied ? <Check size={18} /> : <Copy size={18} />}
-              {copied ? '복사됨!' : '코드 복사'}
-            </button>
+            
+            {authLoading ? (
+              <div className="h-20 flex flex-col items-center justify-center gap-2">
+                <div className="w-32 h-10 bg-slate-800 rounded-xl animate-pulse" />
+                <p className="text-[10px] text-slate-500 animate-pulse">코드 발급 중...</p>
+              </div>
+            ) : profile?.invite_code ? (
+              <>
+                <div className="text-3xl font-black tracking-widest text-primary-coral mb-6">
+                  {profile.invite_code}
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
+                    copied ? 'bg-emerald-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  }`}
+                >
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                  {copied ? '복사됨!' : '코드 복사'}
+                </button>
+              </>
+            ) : (
+              <div className="h-20 flex flex-col items-center justify-center gap-4">
+                <p className="text-xs text-rose-400">코드를 불러오지 못했습니다.</p>
+                <button 
+                  onClick={() => initialize()}
+                  className="flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white"
+                >
+                  <RefreshCw size={16} /> 재시도
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Connect Section */}
@@ -69,14 +89,14 @@ export const ConnectionPage = () => {
                 maxLength={6}
                 value={partnerCode}
                 onChange={(e) => setPartnerCode(e.target.value.toUpperCase())}
-                className="w-full bg-slate-800/50 border-none rounded-2xl py-4 px-4 text-center text-xl font-black tracking-widest text-white focus:ring-2 focus:ring-primary-coral outline-none transition-all"
+                className="w-full bg-slate-800/50 border-none rounded-2xl py-4 px-4 text-center text-xl font-black tracking-widest text-white focus:ring-2 focus:ring-primary-coral outline-none transition-all placeholder:text-slate-700"
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-4 bg-gradient-to-r from-primary-coral to-primary-orange text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                disabled={loading || authLoading || !profile}
+                className="w-full py-4 bg-gradient-to-r from-primary-coral to-primary-orange text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale"
               >
-                <Link2 size={18} />
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <Link2 size={18} />}
                 {loading ? '연결 중...' : '연결하기'}
               </button>
             </form>

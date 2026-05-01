@@ -37,6 +37,7 @@ ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 CREATE POLICY "Public profiles are viewable by everyone" ON profiles FOR SELECT USING (true);
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can view their own couple info" ON couples FOR SELECT USING (auth.uid() = user_a_id OR auth.uid() = user_b_id);
 CREATE POLICY "Couples can manage their own plans" ON plans FOR ALL USING (
