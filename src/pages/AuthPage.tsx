@@ -27,15 +27,15 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background-dark flex items-center justify-center p-6 relative">
-      {/* Dev Bypass Button */}
+    <div className="min-h-screen bg-background-dark flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Dev Bypass Button - Moved to bottom and made more visible */}
       {isDev && (
         <button
           onClick={() => devBypassLogin()}
-          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500 hover:bg-white/10 hover:text-slate-300 transition-all z-[200]"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800 border-2 border-primary-orange text-xs font-black text-primary-orange hover:bg-primary-orange hover:text-white transition-all z-[200] shadow-2xl shadow-primary-orange/20"
         >
-          <ShieldAlert size={12} />
-          DEV BYPASS
+          <ShieldAlert size={14} />
+          DEBUG: FORCE LOGIN (DEV ONLY)
         </button>
       )}
 
