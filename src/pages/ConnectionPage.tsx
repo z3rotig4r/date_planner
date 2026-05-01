@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Link2, LogOut, Check, RefreshCw, Loader2 } from 'lucide-react';
+import { Copy, Link2, LogOut, Check, RefreshCw, Loader2, Share2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const ConnectionPage = () => {
@@ -9,11 +10,33 @@ export const ConnectionPage = () => {
   const [loading, setLoading] = useState(false);
   const { profile, loading: authLoading, initialize, connectWithPartner, signOut } = useAuthStore();
 
+  const shareText = `DateSync에서 우리만의 데이트 계획을 세워볼까요? 💌\n[내 초대 코드: ${profile?.invite_code}]\n앱에서 코드를 입력하고 저와 연결해 주세요!`;
+
   const handleCopy = () => {
     if (profile?.invite_code) {
       navigator.clipboard.writeText(profile.invite_code);
       setCopied(true);
+      toast.success('초대 코드가 복사되었습니다!');
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'DateSync 초대',
+          text: shareText,
+          url: window.location.origin,
+        });
+        toast.success('공유가 완료되었습니다!');
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          handleCopy();
+        }
+      }
+    } else {
+      handleCopy();
     }
   };
 
@@ -26,7 +49,9 @@ export const ConnectionPage = () => {
     setLoading(false);
 
     if (error) {
-      alert(error);
+      toast.error(error);
+    } else {
+      toast.success('커플 연결에 성공했습니다! ❤️');
     }
   };
 
@@ -57,15 +82,22 @@ export const ConnectionPage = () => {
                 <div className="text-3xl font-black tracking-widest text-primary-coral mb-6">
                   {profile.invite_code}
                 </div>
-                <button
-                  onClick={handleCopy}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
-                    copied ? 'bg-emerald-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  {copied ? <Check size={18} /> : <Copy size={18} />}
-                  {copied ? '복사됨!' : '코드 복사'}
-                </button>
+                <div className="flex flex-col w-full gap-2">
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold bg-primary-coral text-white shadow-lg shadow-primary-coral/20 hover:scale-105 active:scale-95 transition-all"
+                  >
+                    <Share2 size={18} />
+                    초대장 보내기
+                  </button>
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center justify-center gap-2 w-full py-2 rounded-xl font-medium text-slate-400 hover:text-white transition-all text-xs"
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    코드만 복사하기
+                  </button>
+                </div>
               </>
             ) : (
               <div className="h-20 flex flex-col items-center justify-center gap-4">

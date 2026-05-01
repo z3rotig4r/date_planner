@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Plus, Moon, Sun, Loader2, LogOut } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { TimelineBoard } from './components/TimelineBoard';
 import { CalendarView } from './components/CalendarView';
 import { AddPlanSheet } from './components/AddPlanSheet';
@@ -107,15 +108,27 @@ function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {!user ? (
-        <AuthPage key="auth" />
-      ) : !coupleId ? (
-        <ConnectionPage key="connection" />
-      ) : (
-        <MainBoard key="main" />
-      )}
-    </AnimatePresence>
+    <>
+      <Toaster 
+        toastOptions={{
+          className: 'dark:bg-slate-800 dark:text-white dark:border dark:border-slate-700',
+          style: {
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+          }
+        }}
+      />
+      <AnimatePresence mode="wait">
+        {!user ? (
+          <AuthPage key="auth" />
+        ) : !coupleId ? (
+          <ConnectionPage key="connection" />
+        ) : (
+          <MainBoard key="main" />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
