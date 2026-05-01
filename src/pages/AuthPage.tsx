@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Mail, Send, CheckCircle2 } from 'lucide-react';
+import { Heart, Mail, Send, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
 export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const signInWithMagicLink = useAuthStore((state) => state.signInWithMagicLink);
+  const { signInWithMagicLink, devBypassLogin } = useAuthStore();
+
+  const isDev = import.meta.env.DEV;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +27,18 @@ export const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background-dark flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background-dark flex items-center justify-center p-6 relative">
+      {/* Dev Bypass Button */}
+      {isDev && (
+        <button
+          onClick={() => devBypassLogin()}
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500 hover:bg-white/10 hover:text-slate-300 transition-all z-[200]"
+        >
+          <ShieldAlert size={12} />
+          DEV BYPASS
+        </button>
+      )}
+
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
