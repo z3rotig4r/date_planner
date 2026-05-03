@@ -31,11 +31,12 @@ export const mockFetchOpenGraph = async (url: string, type: LinkType): Promise<L
 
   switch (type) {
     case 'instagram':
+      const username = url.split('instagram.com/')[1]?.split('/')[0] || '데이트코스';
       return {
         type,
         url,
-        title: 'Instagram 게시물',
-        description: '인스타그램에서 핫플 정보를 확인해보세요. #데이트코스 #맛집추천',
+        title: `@${username} 님의 게시물`,
+        description: '인스타그램에서 핫플 정보를 확인해보세요. #데이트코스 #맛집추천 #럽스타그램',
         thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=300&q=80',
         siteName: 'Instagram',
       };
@@ -46,9 +47,10 @@ export const mockFetchOpenGraph = async (url: string, type: LinkType): Promise<L
         url,
         title: url.includes('garaku') ? '스프카레 가라쿠 (Soup Curry Garaku)' : '지도에서 장소 보기',
         description: '상세 위치와 방문객 리뷰를 확인해보세요.',
+        // Use a more reliable travel-themed placeholder if it's a generic map link
         thumbnail: url.includes('garaku') 
           ? 'https://images.unsplash.com/photo-1598514983318-2f64f8f4796c?auto=format&fit=crop&w=300&q=80'
-          : 'https://images.unsplash.com/photo-1570160234854-dc211994ca4f?auto=format&fit=crop&w=300&q=80',
+          : 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80',
         siteName: isNaver ? 'Naver Map' : 'Google Maps',
       };
     case 'general':

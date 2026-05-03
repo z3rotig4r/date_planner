@@ -58,11 +58,11 @@ function MainBoard() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-8">
-        <div className="mb-10">
+      <main className="max-w-md mx-auto px-4 pt-8 pb-32">
+        <div className="mb-8">
           <CalendarView />
         </div>
-        <div className="mb-8">
+        <div className="mb-6">
           <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100 mb-1">오늘의 데이트 코스</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm">파트너가 제안한 계획을 확인하고 응답해주세요.</p>
         </div>
