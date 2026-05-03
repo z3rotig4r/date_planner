@@ -1,13 +1,23 @@
 import { Handler } from '@netlify/functions';
 
 export const handler: Handler = async (event) => {
+  console.log('[NaverSearch] Function triggered');
   const query = event.queryStringParameters?.query;
+
+  // Netlify environments use process.env
   const clientId = process.env.VITE_NAVER_CLIENT_ID;
   const clientSecret = process.env.VITE_NAVER_CLIENT_SECRET;
+
+  console.log('[NaverSearch] Query:', query);
+  console.log('[NaverSearch] API Key presence:', { 
+    clientId: !!clientId, 
+    clientSecret: !!clientSecret 
+  });
 
   if (!query) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Query is required' }) };
   }
+...
 
   if (!clientId || !clientSecret) {
     return { 
