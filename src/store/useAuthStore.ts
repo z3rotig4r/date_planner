@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabaseClient';
-import type { User } from '@supabase/supabase-js';
+import type { User, AuthError } from '@supabase/supabase-js';
 
 interface Profile {
   id: string;
@@ -14,7 +14,7 @@ interface AuthState {
   coupleId: string | null;
   loading: boolean;
   initialize: () => Promise<void>;
-  signInWithMagicLink: (email: string) => Promise<{ error: any }>;
+  signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   connectWithPartner: (partnerCode: string) => Promise<{ error: string | null }>;
   devBypassLogin: () => Promise<void>;
@@ -34,11 +34,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     const fetchProfileAndCouple = async (userId: string) => {
       try {
-        let { data: profile, error: profileError } = await supabase
+        const { data: initialProfile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
+
+        let profile = initialProfile;
 
         if (profileError && profileError.code === 'PGRST116') {
           const newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -129,16 +131,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   devBypassLogin: async () => {
     set({ loading: true });
-    const mockId = 'dev-user-' + Math.random().toString(36).substring(2, 8);
+    
+    // 1. Create a consistent mock UUID for DB search
+    const mockId = '00000000-0000-0000-0000-' + Math.random().toString(36).substring(2, 14).padEnd(12, '0');
     const mockUser: User = {
       id: mockId,
-      email: 'dev@datesync.test',
+      email: `dev-${Math.random().toString(36).substring(2, 6)}@datesync.test`,
       app_metadata: {},
       user_metadata: { nickname: 'Dev Tester' },
       aud: 'authenticated',
       created_at: new Date().toISOString(),
     };
 
+    // 2. Generate a valid 6-char code
     const mockInviteCode = 'DEV' + Math.random().toString(36).substring(2, 5).toUpperCase();
     const mockProfile: Profile = {
       id: mockId,
@@ -146,7 +151,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       invite_code: mockInviteCode,
     };
 
+    // 3. Actually UPSERT to Supabase so it's searchable by other browser window
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert([mockProfile]);
+
+    if (upsertError) {
+      console.error('❌ Failed to upsert mock profile:', upsertError);
+      alert('DB 제약 조건(FK)이 해제되지 않았을 수 있습니다. SQL Editor에서 "ALTER TABLE profiles DROP CONSTRAINT profiles_id_fkey;"를 실행해 주세요.');
+      set({ loading: false });
+      return;
+    }
+
     set({ user: mockUser, profile: mockProfile, coupleId: null, loading: false });
-    console.log('🚀 Dev Bypass Login Successful:', mockProfile);
+    console.log('🚀 Dev Bypass (DB Integrated) Successful:', mockProfile);
   },
 }));

@@ -4,11 +4,15 @@ import { motion } from 'framer-motion';
 export const CalendarView = () => {
   const { selectedDate, setSelectedDate } = usePlanStore();
 
-  // Generate 7 days starting from 2026-07-13 (Monday of that week)
-  const baseDate = new Date('2026-07-13');
+  const today = new Date();
+  // Get Monday of current week
+  const day = today.getDay();
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(today.setDate(diff));
+
   const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(baseDate);
-    d.setDate(baseDate.getDate() + i);
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     return {
       full: d.toISOString().split('T')[0],
       dayName: ['일', '월', '화', '수', '목', '금', '토'][d.getDay()],
