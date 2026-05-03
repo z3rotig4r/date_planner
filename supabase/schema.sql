@@ -37,14 +37,31 @@ CREATE TABLE IF NOT EXISTS public.plans (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 캐시 테이블: 외부 링크 미리보기 정보를 저장하여 반복적인 크롤링 방지
+CREATE TABLE IF NOT EXISTS public.link_preview_cache (
+  url TEXT PRIMARY KEY,
+  title TEXT,
+  description TEXT,
+  image TEXT,
+  site_name TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 2. RLS(Row Level Security) 활성화
 -- -------------------------------------------------------------------------------------------
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE couples ENABLE ROW LEVEL SECURITY;
 ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE link_preview_cache ENABLE ROW LEVEL SECURITY;
 
 -- 3. RLS 정책 초기화 및 재설정 (보안 강화를 위한 최신 정책 반영)
 -- -------------------------------------------------------------------------------------------
+
+-- [Link Preview Cache 정책]
+DROP POLICY IF EXISTS "Anyone can read link cache" ON link_preview_cache;
+DROP POLICY IF EXISTS "Anyone can insert link cache" ON link_preview_cache;
+CREATE POLICY "Anyone can read link cache" ON link_preview_cache FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert link cache" ON link_preview_cache FOR INSERT WITH CHECK (true);
 
 -- [Profiles 정책 초기화]
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;

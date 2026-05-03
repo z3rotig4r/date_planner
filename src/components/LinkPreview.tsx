@@ -96,40 +96,32 @@ export const LinkPreview = ({ url, activityTitle }: LinkPreviewProps) => {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -4, scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
-      className="mt-4 block p-4 rounded-[32px] bg-[#0F172A]/40 border border-slate-800/60 backdrop-blur-xl shadow-2xl hover:bg-[#0F172A]/60 hover:border-primary-coral/30 transition-all group overflow-hidden cursor-pointer relative"
+      className="mt-4 block p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-primary-coral/20 transition-all group overflow-hidden cursor-pointer relative"
     >
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-      
       <div className="flex gap-4 items-center">
-        <div className="shrink-0 relative">
+        <div className="shrink-0 relative overflow-hidden rounded-xl">
           {renderThumbnail()}
-          {data.type === 'instagram' && data.thumbnail && (
-            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] rounded-full flex items-center justify-center border-2 border-[#0F172A]">
-              <Camera size={12} className="text-white" />
-            </div>
-          )}
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-              data.type === 'map' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-              data.type === 'instagram' ? 'bg-primary-coral/10 text-primary-coral border border-primary-coral/20' :
-              'bg-slate-800 text-slate-400'
-            }`}>
-              {data.category || data.siteName || (data.type === 'map' ? 'Map' : 'Link')}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+              {data.siteName || (data.type === 'map' ? 'Naver Map' : 'Link')}
             </span>
           </div>
-          <h4 className="text-[15px] font-black text-slate-100 truncate mb-1">
+          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate mb-1 leading-snug">
             {data.title || activityTitle || '상세 정보 보기'}
           </h4>
-          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-            {data.description || '클릭하여 상세 내용을 확인하세요.'}
+          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+            {data.description || '네이버 지도에서 상세 정보를 확인하세요.'}
+          </p>
+          <p className="text-[9px] text-primary-coral font-medium mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+            {new URL(url).hostname}
           </p>
         </div>
 
         <div className="shrink-0 ml-1">
-          <div className="w-8 h-8 rounded-full bg-slate-800/50 flex items-center justify-center text-slate-600 group-hover:text-primary-coral group-hover:bg-primary-coral/10 transition-all">
+          <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-300 group-hover:text-primary-coral group-hover:bg-primary-coral/5 transition-all">
             <ExternalLink size={14} />
           </div>
         </div>

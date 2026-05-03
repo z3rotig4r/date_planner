@@ -39,49 +39,27 @@ export const fetchRealOpenGraph = async (url: string, activityTitle?: string): P
   const type = getLinkType(url);
   const cacheKey = `${type}:${url}:${activityTitle || ''}`;
 
-  // 1. 캐시 확인
+  // 1. In-memory Cache check
   if (apiCache.has(cacheKey)) {
     return apiCache.get(cacheKey)!;
   }
-  
+
   try {
-    let resultData: LinkMetadata | null = null;
+    // 2. Use unified production preview endpoint (Netlify Function)
+    const response = await fetch(`/.netlify/functions/link-preview?url=${encodeURIComponent(url)}`);
+    const result = await response.json();
 
-    // 2. 네이버 지도의 경우 스크래퍼를 우선 사용 (정확한 상호명 및 대표 사진 추출)
-    if (type === 'map') {
-      const response = await fetch(`/.netlify/functions/scrape-naver?url=${encodeURIComponent(url)}`);
-      const result = await response.json();
+    if (result.status === 'success' && result.data) {
+      const { data } = result;
+      const resultData: LinkMetadata = {
+        type,
+        url,
+        title: data.title || activityTitle || '',
+        description: data.description,
+        thumbnail: data.image,
+        siteName: data.site_name,
+      };
 
-      if (result.status === 'success' && result.data) {
-        resultData = {
-          type,
-          url,
-          title: result.data.title,
-          description: result.data.description || '네이버 지도에서 상세 정보를 확인하세요.',
-          thumbnail: result.data.image,
-          siteName: result.data.publisher,
-        };
-      }
-    }
-
-    // 3. (Fallback) 지도가 아닌 일반 링크나 스크래퍼 실패 시 Microlink 사용
-    if (!resultData) {      const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
-      const result = await response.json();
-
-      if (result.status === 'success' && result.data) {
-        const { data } = result;
-        resultData = {
-          type,
-          url,
-          title: data.title || '',
-          description: data.description || '',
-          thumbnail: data.image?.url || data.logo?.url || undefined,
-          siteName: data.publisher || data.author || undefined,
-        };
-      }
-    }
-
-    if (resultData) {
       apiCache.set(cacheKey, resultData);
       return resultData;
     }
@@ -89,6 +67,6 @@ export const fetchRealOpenGraph = async (url: string, activityTitle?: string): P
     console.error('[LinkParser] Failed to fetch metadata:', error);
   }
 
-  // 실패 시 기본값
-  return { type, url, title: '' };
+  // Fallback
+  return { type, url, title: activityTitle || '' };
 };
