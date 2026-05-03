@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, MapPin, ExternalLink, Globe, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Camera, MapPin, ExternalLink, Globe } from 'lucide-react';
 import { getLinkType, mockFetchOpenGraph } from '../utils/linkParser';
 import type { LinkMetadata } from '../utils/linkParser';
 
