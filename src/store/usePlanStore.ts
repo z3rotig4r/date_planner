@@ -50,8 +50,7 @@ export const usePlanStore = create<PlanState>((set, get) => ({
   },
 
   notifyPartner: async (type, payload) => {
-    const { coupleId } = get();
-    const { user } = useAuthStore.getState();
+    const { user, coupleId } = useAuthStore.getState();
     if (!coupleId || !user) return;
 
     // 1. Find partner ID
