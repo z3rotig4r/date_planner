@@ -11,13 +11,27 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    console.log('[Scraper] Fetching URL:', url);
+    console.log('[Scraper] Original URL:', url);
 
-    // 1. Fetch with a real browser User-Agent
-    const response = await fetch(url, {
+    // 1. Detect Pin ID and convert to a scrape-friendly URL
+    // Many mobile links lead to "bridge" pages (appLink.naver) which lack metadata.
+    let targetUrl = url;
+    const pinIdMatch = url.match(/(?:pinId|id)=(\d+)/);
+    const isMobileBridge = url.includes('m.map.naver.com') || url.includes('appLink.naver');
+
+    if (pinIdMatch && isMobileBridge) {
+      const pinId = pinIdMatch[1];
+      // PC place pages are much richer in metadata (OG tags + INITIAL_STATE)
+      targetUrl = `https://pcmap.place.naver.com/place/${pinId}/home`;
+      console.log('[Scraper] Detected PinID, switching to PC URL:', targetUrl);
+    }
+
+    // 2. Fetch the target URL
+    const response = await fetch(targetUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        // Using a Desktop User-Agent for the PC place page to get better OG tags
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
       },
       redirect: 'follow',
@@ -25,11 +39,10 @@ export const handler: Handler = async (event) => {
 
     const finalUrl = response.url;
     const html = await response.text();
-    console.log('[Scraper] Final Redirected URL:', finalUrl);
+    console.log('[Scraper] Final Fetched URL:', finalUrl);
 
-    // 2. Data Extraction helper
+    // 3. Data Extraction (OG Tags)
     const extractOg = (property: string) => {
-      // Handles both property="og:title" and name="og:title"
       const regex = new RegExp(`<meta\\s+(?:property|name)=["']og:${property}["']\\s+content=["']([^"']+)["']`, 'i');
       const match = html.match(regex);
       return match ? match[1] : null;
@@ -39,41 +52,42 @@ export const handler: Handler = async (event) => {
     let image = extractOg('image');
     let description = extractOg('description');
 
-    // 3. Special Handling for Naver Map (Internal JSON State)
-    // Naver Map results often don't have OG tags on the initial landing page if it's a dynamic redirect
-    if (!title || title.includes('네이버 지도') || !image) {
-      // Search for window.__INITIAL_STATE__ or similar JSON data
+    // 4. Advanced Extraction: window.__INITIAL_STATE__
+    // This is where Naver hides high-res photos and specific place names
+    if (!title || title === '네이버 지도' || !image || image.includes('og-map-400x200.png')) {
       const stateRegex = /window\.__INITIAL_STATE__\s*=\s*({.+?});\s*<\/script>/i;
       const stateMatch = html.match(stateRegex);
       
       if (stateMatch) {
         try {
           const state = JSON.parse(stateMatch[1]);
-          console.log('[Scraper] Found INITIAL_STATE');
+          console.log('[Scraper] Found INITIAL_STATE JSON');
           
-          // Naver Map Mobile/Desktop state traversal
-          const place = state.place?.detail || state.place || {};
-          title = place.name || place.title || title;
-          image = place.thumUrl || (place.images && place.images[0]?.url) || image;
-          description = place.address || place.roadAddress || description;
+          // Structure varies between types, but 'base' usually contains the core info
+          const base = state.place?.base || state.place?.detail || state.place || {};
+          title = base.name || base.title || title;
+          description = base.address || base.roadAddress || base.category || description;
+          
+          // Image fallback hierarchy
+          image = base.thumUrl || (base.images && base.images[0]?.url) || (base.image && base.image[0]?.url) || image;
         } catch (e) {
           console.log('[Scraper] Failed to parse INITIAL_STATE');
         }
       }
     }
 
-    // 4. Fallback for title (Remove " : 네이버 지도" suffix)
+    // 5. Cleanup and Fallbacks
     if (title) {
+      // Remove annoying " : 네이버 지도" suffix often present in OG tags
       title = title.replace(/\s*:\s*네이버\s*지도/i, '').trim();
     }
 
-    // 5. If it's a Naver Search URL instead of Map, try to extract from the query
-    if (!title && finalUrl.includes('search.naver.com')) {
-      const urlObj = new URL(finalUrl);
-      title = urlObj.searchParams.get('query') || '네이버 검색';
+    // Filter out the generic Naver Map placeholder image
+    if (image && image.includes('og-map-400x200.png')) {
+      image = null;
     }
 
-    console.log('[Scraper] Result:', { title, hasImage: !!image });
+    console.log('[Scraper] Success:', { title, hasImage: !!image });
 
     return {
       statusCode: 200,
