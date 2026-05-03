@@ -34,17 +34,26 @@ export const fetchRealOpenGraph = async (url: string): Promise<LinkMetadata> => 
   const type = getLinkType(url);
   
   try {
-    const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    // 네이버 지도의 경우 우리가 직접 만든 Serverless Proxy를 사용 (CORS 및 방어벽 우회)
+    const apiUrl = type === 'map' && (url.includes('naver') || url.includes('naver.me'))
+      ? `/.netlify/functions/scrape-naver?url=${encodeURIComponent(url)}`
+      : `https://api.microlink.io/?url=${encodeURIComponent(url)}`;
+
+    const response = await fetch(apiUrl);
     const result = await response.json();
 
     if (result.status === 'success' && result.data) {
       const { data } = result;
+      
+      // Microlink와 자체 API의 응답 형식을 통일하여 처리
+      const isCustomApi = apiUrl.includes('scrape-naver');
+      
       return {
         type,
         url,
         title: data.title || '',
         description: data.description || '',
-        thumbnail: data.image?.url || data.logo?.url || undefined,
+        thumbnail: isCustomApi ? data.image : (data.image?.url || data.logo?.url),
         siteName: data.publisher || data.author || undefined,
       };
     }
