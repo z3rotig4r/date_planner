@@ -17,7 +17,6 @@ export const handler: Handler = async (event) => {
   if (!query) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Query is required' }) };
   }
-...
 
   if (!clientId || !clientSecret) {
     return { 
