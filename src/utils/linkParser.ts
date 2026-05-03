@@ -9,64 +9,79 @@ export interface LinkMetadata {
   url: string;
 }
 
+/**
+ * 도메인을 분석하여 링크 타입을 식별하는 정규식 기반 유틸리티
+ */
 export const getLinkType = (url: string): LinkType => {
   if (!url) return 'unknown';
-  if (url.includes('instagram.com')) return 'instagram';
-  if (url.includes('naver.com') && (url.includes('map') || url.includes('naver.me'))) return 'map';
-  if (url.includes('google.com/maps') || url.includes('goo.gl/maps')) return 'map';
+  
+  const instagramRegex = /(https?:\/\/)?(www\.)?instagram\.com\/.+/i;
+  const naverMapRegex = /(https?:\/\/)?(map\.naver\.com|naver\.me)\/.+/i;
+  const googleMapRegex = /(https?:\/\/)?(www\.)?(google\.com\/maps|goo\.gl\/maps)\/.+/i;
+
+  if (instagramRegex.test(url)) return 'instagram';
+  if (naverMapRegex.test(url) || googleMapRegex.test(url)) return 'map';
   if (url.startsWith('http')) return 'general';
+  
   return 'unknown';
 };
 
+/**
+ * CORS 에러를 회피하기 위해 클라이언트 사이드에서 도메인별 Mock 데이터를 반환
+ * 실제 환경에서는 서버 사이드 Proxy(Vercel Functions, Supabase Edge Functions 등)를 통해 
+ * 실제 OG 데이터를 크롤링해오는 로직으로 교체 가능합니다.
+ */
 export const mockFetchOpenGraph = async (url: string, type: LinkType): Promise<LinkMetadata> => {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  // 네트워크 지연 시뮬레이션 (Skeleton UI 확인용)
+  await new Promise((resolve) => setTimeout(resolve, 1200));
 
   let hostname = '';
   try {
-    hostname = new URL(url).hostname;
+    hostname = new URL(url).hostname.replace('www.', '');
   } catch (e) {
-    hostname = url;
+    hostname = 'Link';
   }
 
   switch (type) {
     case 'instagram':
-      const username = url.split('instagram.com/')[1]?.split('/')[0] || '데이트코스';
+      const handle = url.split('instagram.com/')[1]?.split('/')[0] || 'insta_user';
       return {
         type,
         url,
-        title: `@${username} 님의 게시물`,
-        description: '인스타그램에서 핫플 정보를 확인해보세요. #데이트코스 #맛집추천 #럽스타그램',
+        title: `@${handle} 님의 포스트`,
+        description: '요즘 가장 핫한 데이트 명소를 인스타그램 게시물에서 확인해보세요.',
         thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=300&q=80',
         siteName: 'Instagram',
       };
+      
     case 'map':
       const isNaver = url.includes('naver');
       return {
         type,
         url,
-        title: url.includes('garaku') ? '스프카레 가라쿠 (Soup Curry Garaku)' : '지도에서 장소 보기',
-        description: '상세 위치와 방문객 리뷰를 확인해보세요.',
-        // Use a more reliable travel-themed placeholder if it's a generic map link
-        thumbnail: url.includes('garaku') 
-          ? 'https://images.unsplash.com/photo-1598514983318-2f64f8f4796c?auto=format&fit=crop&w=300&q=80'
+        title: isNaver ? '네이버 지도 장소 정보' : 'Google 지도 위치 정보',
+        description: '지도를 클릭하여 상세 위치와 가는 길, 방문자 리뷰를 확인하세요.',
+        thumbnail: isNaver 
+          ? 'https://images.unsplash.com/photo-1570160234854-dc211994ca4f?auto=format&fit=crop&w=300&q=80'
           : 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80',
         siteName: isNaver ? 'Naver Map' : 'Google Maps',
       };
+      
     case 'general':
       return {
         type,
         url,
         title: hostname,
-        description: '이 링크의 상세 내용을 웹사이트에서 직접 확인해보세요.',
+        description: '공유된 웹사이트 링크입니다. 클릭하여 상세 내용을 확인하세요.',
         thumbnail: 'https://images.unsplash.com/photo-1436491865332-7a61a109c7d3?auto=format&fit=crop&w=300&q=80',
         siteName: hostname,
       };
+      
     default:
       return {
         type: 'unknown',
         url,
-        title: hostname || url,
+        title: url,
       };
   }
 };
