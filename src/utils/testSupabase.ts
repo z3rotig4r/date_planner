@@ -1,5 +1,4 @@
 import { supabase } from '../services/supabaseClient';
-import { useAuthStore } from '../store/useAuthStore';
 
 /**
  * Supabase Health Check & Security Diagnostic Tool
@@ -27,7 +26,7 @@ export const testSupabase = async () => {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError) {
     console.error('❌ Profile Fetch Error (Check RLS):', profileError.message);
@@ -95,5 +94,6 @@ export const testSupabase = async () => {
 
 // Expose to window for easy console access
 if (typeof window !== 'undefined') {
+  console.log('🚀 Supabase Diagnostic Tool loaded. Type "testSupabase()" in console to run.');
   (window as any).testSupabase = testSupabase;
 }

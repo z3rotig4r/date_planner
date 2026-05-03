@@ -37,34 +37,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     const fetchProfileAndCouple = async (userId: string) => {
       try {
-        const { data: initialProfile, error: profileError } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-        let profile = initialProfile;
+        let currentProfile = profile;
 
         if (profileError) {
-          if (profileError.code === 'PGRST116') {
-            const newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const { data: fallbackProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert([{ 
-                id: userId, 
-                nickname: user?.user_metadata?.nickname || user?.email?.split('@')[0],
-                invite_code: newInviteCode 
-              }])
-              .select()
-              .single();
-            
-            if (createError) {
-              handleSupabaseError(createError, '프로필 생성 중 오류가 발생했습니다.');
-            } else {
-              profile = fallbackProfile;
-            }
+          handleSupabaseError(profileError, '프로필 정보를 가져오는데 실패했습니다.');
+        }
+
+        if (!currentProfile && !profileError) {
+          const newInviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const { data: fallbackProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert([{ 
+              id: userId, 
+              nickname: user?.user_metadata?.nickname || user?.email?.split('@')[0],
+              invite_code: newInviteCode 
+            }])
+            .select()
+            .maybeSingle();
+          
+          if (createError) {
+            handleSupabaseError(createError, '프로필 생성 중 오류가 발생했습니다.');
           } else {
-            handleSupabaseError(profileError, '프로필 정보를 가져오는데 실패했습니다.');
+            currentProfile = fallbackProfile;
           }
         }
 
@@ -72,13 +72,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .from('couples')
           .select('id')
           .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
-          .single();
+          .maybeSingle();
         
-        if (coupleError && coupleError.code !== 'PGRST116') {
+        if (coupleError) {
           handleSupabaseError(coupleError, '연결 정보를 가져오는데 실패했습니다.');
         }
         
-        return { profile, coupleId: couple?.id ?? null };
+        return { profile: currentProfile, coupleId: couple?.id ?? null };
       } catch (err) {
         handleSupabaseError(err as Error, '인증 데이터 처리 중 예기치 않은 오류가 발생했습니다.');
         return { profile: null, coupleId: null };
@@ -125,7 +125,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .from('profiles')
       .select('id')
       .eq('invite_code', partnerCode.toUpperCase())
-      .single();
+      .maybeSingle();
 
     if (findError || !partnerProfile) {
       handleSupabaseError(findError, '유효하지 않은 코드입니다.');
@@ -140,7 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         { user_a_id: user.id, user_b_id: partnerProfile.id }
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (createError) {
       handleSupabaseError(createError, '커플 연결에 실패했습니다.');
