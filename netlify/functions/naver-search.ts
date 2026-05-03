@@ -28,7 +28,7 @@ export const handler: Handler = async (event) => {
   try {
     // 1. 지역 검색 API (Place Info)
     const localRes = await fetch(
-      `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=1`,
+      `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=5`,
       {
         headers: {
           'X-Naver-Client-Id': clientId,
@@ -37,7 +37,9 @@ export const handler: Handler = async (event) => {
       }
     );
     const localData = await localRes.json();
-    const place = localData.items?.[0];
+    console.log(`[NaverSearch] Local Data for "${query}":`, JSON.stringify(localData));
+    
+    let place = localData.items?.[0];
 
     // 2. 이미지 검색 API (Thumbnail)
     const imageRes = await fetch(
@@ -50,7 +52,27 @@ export const handler: Handler = async (event) => {
       }
     );
     const imageData = await imageRes.json();
-    const image = imageData.items?.[0]?.link;
+    console.log(`[NaverSearch] Image Data for "${query}":`, JSON.stringify(imageData));
+    
+    let image = imageData.items?.[0]?.link;
+
+    // 3. 만약 이미지가 없다면 장소명 + "맛집" 또는 카테고리로 재검색 시도 (이미지 확보용)
+    if (!image && place) {
+      const retryQuery = `${place.title.replace(/<[^>]*>?/gm, '')} 음식점`;
+      const retryImageRes = await fetch(
+        `https://openapi.naver.com/v1/search/image?query=${encodeURIComponent(retryQuery)}&display=1&sort=sim`,
+        {
+          headers: {
+            'X-Naver-Client-Id': clientId,
+            'X-Naver-Client-Secret': clientSecret,
+          },
+        }
+      );
+      const retryImageData = await retryImageRes.json();
+      image = retryImageData.items?.[0]?.link;
+    }
+
+    const finalTitle = place?.title?.replace(/<[^>]*>?/gm, '') || query;
 
     return {
       statusCode: 200,
@@ -61,7 +83,7 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({
         status: 'success',
         data: {
-          title: place?.title?.replace(/<[^>]*>?/gm, '') || query,
+          title: finalTitle,
           address: place?.address || place?.roadAddress || '',
           category: place?.category || '장소',
           imageUrl: image || null,

@@ -47,27 +47,25 @@ export const fetchRealOpenGraph = async (url: string, activityTitle?: string): P
   try {
     let resultData: LinkMetadata | null = null;
 
-    // 2. 네이버/구글 지도의 경우 자체 네이버 검색 API 사용 (Hybrid Static Rendering)
-    if (type === 'map' && activityTitle) {
-      const response = await fetch(`/.netlify/functions/naver-search?query=${encodeURIComponent(activityTitle)}`);
+    // 2. 네이버 지도의 경우 스크래퍼를 우선 사용 (정확한 상호명 및 대표 사진 추출)
+    if (type === 'map') {
+      const response = await fetch(`/.netlify/functions/scrape-naver?url=${encodeURIComponent(url)}`);
       const result = await response.json();
-      
+
       if (result.status === 'success' && result.data) {
         resultData = {
           type,
           url,
           title: result.data.title,
-          description: result.data.address || '상세 위치 정보를 확인하세요.',
-          thumbnail: result.data.imageUrl,
+          description: result.data.description || '네이버 지도에서 상세 정보를 확인하세요.',
+          thumbnail: result.data.image,
           siteName: result.data.publisher,
-          category: result.data.category,
         };
       }
-    } 
-    
-    // 3. 인스타그램 및 일반 링크는 Microlink API 사용
-    if (!resultData) {
-      const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    }
+
+    // 3. (Fallback) 지도가 아닌 일반 링크나 스크래퍼 실패 시 Microlink 사용
+    if (!resultData) {      const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
       const result = await response.json();
 
       if (result.status === 'success' && result.data) {
