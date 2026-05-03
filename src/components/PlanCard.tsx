@@ -78,7 +78,7 @@ export const PlanCard = ({ plan, onStatusChange }: PlanCardProps) => {
       </div>
 
       {/* Rich Link Preview */}
-      {plan.link && <LinkPreview url={plan.link} />}
+      {plan.link && <LinkPreview url={plan.link} activityTitle={plan.activity} />}
 
       <ActionButtons status={plan.status} onStatusChange={onStatusChange} />
       

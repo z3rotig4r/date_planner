@@ -16,7 +16,7 @@ export const getLinkType = (url: string): LinkType => {
   if (!url) return 'unknown';
   
   const instagramRegex = /(https?:\/\/)?(www\.)?instagram\.com\/.+/i;
-  const naverMapRegex = /(https?:\/\/)?(map\.naver\.com|naver\.me)\/.+/i;
+  const naverMapRegex = /(https?:\/\/)?(map\.naver\.com|naver\.me|n\.news\.naver\.com)\/.+/i;
   const googleMapRegex = /(https?:\/\/)?(www\.)?(google\.com\/maps|goo\.gl\/maps)\/.+/i;
 
   if (instagramRegex.test(url)) return 'instagram';
@@ -27,61 +27,35 @@ export const getLinkType = (url: string): LinkType => {
 };
 
 /**
- * CORS 에러를 회피하기 위해 클라이언트 사이드에서 도메인별 Mock 데이터를 반환
- * 실제 환경에서는 서버 사이드 Proxy(Vercel Functions, Supabase Edge Functions 등)를 통해 
- * 실제 OG 데이터를 크롤링해오는 로직으로 교체 가능합니다.
+ * Microlink API를 사용하여 실제 OpenGraph 데이터를 페칭합니다.
+ * 클라이언트 사이드 CORS 에러를 우회하는 무료 프록시 서비스입니다.
  */
-export const mockFetchOpenGraph = async (url: string, type: LinkType): Promise<LinkMetadata> => {
-  // 네트워크 지연 시뮬레이션 (Skeleton UI 확인용)
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-
-  let hostname = '';
+export const fetchRealOpenGraph = async (url: string): Promise<LinkMetadata> => {
+  const type = getLinkType(url);
+  
   try {
-    hostname = new URL(url).hostname.replace('www.', '');
-  } catch (e) {
-    hostname = 'Link';
+    const response = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    const result = await response.json();
+
+    if (result.status === 'success' && result.data) {
+      const { data } = result;
+      return {
+        type,
+        url,
+        title: data.title || '',
+        description: data.description || '',
+        thumbnail: data.image?.url || data.logo?.url || undefined,
+        siteName: data.publisher || data.author || undefined,
+      };
+    }
+  } catch (error) {
+    console.error('[LinkParser] Failed to fetch metadata:', error);
   }
 
-  switch (type) {
-    case 'instagram':
-      const handle = url.split('instagram.com/')[1]?.split('/')[0] || 'insta_user';
-      return {
-        type,
-        url,
-        title: `@${handle} 님의 포스트`,
-        description: '요즘 가장 핫한 데이트 명소를 인스타그램 게시물에서 확인해보세요.',
-        thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=300&q=80',
-        siteName: 'Instagram',
-      };
-      
-    case 'map':
-      const isNaver = url.includes('naver');
-      return {
-        type,
-        url,
-        title: isNaver ? '네이버 지도 장소 정보' : 'Google 지도 위치 정보',
-        description: '지도를 클릭하여 상세 위치와 가는 길, 방문자 리뷰를 확인하세요.',
-        thumbnail: isNaver 
-          ? 'https://images.unsplash.com/photo-1570160234854-dc211994ca4f?auto=format&fit=crop&w=300&q=80'
-          : 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80',
-        siteName: isNaver ? 'Naver Map' : 'Google Maps',
-      };
-      
-    case 'general':
-      return {
-        type,
-        url,
-        title: hostname,
-        description: '공유된 웹사이트 링크입니다. 클릭하여 상세 내용을 확인하세요.',
-        thumbnail: 'https://images.unsplash.com/photo-1436491865332-7a61a109c7d3?auto=format&fit=crop&w=300&q=80',
-        siteName: hostname,
-      };
-      
-    default:
-      return {
-        type: 'unknown',
-        url,
-        title: url,
-      };
-  }
+  // 실패 시 기본값 반환
+  return {
+    type,
+    url,
+    title: '',
+  };
 };
