@@ -7,6 +7,8 @@ interface Profile {
   id: string;
   nickname: string;
   invite_code: string;
+  kakao_access_token?: string;
+  kakao_refresh_token?: string;
 }
 
 interface AuthState {
@@ -16,6 +18,8 @@ interface AuthState {
   loading: boolean;
   initialize: () => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  signInWithKakao: () => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   connectWithPartner: (partnerCode: string) => Promise<{ error: string | null }>;
   devBypassLogin: () => Promise<void>;
@@ -92,8 +96,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, profile: null, coupleId: null, loading: false });
     }
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
       const user = session?.user ?? null;
+      
+      // Kakao 토큰 캡처 (로그인 시 provider_token이 session에 포함됨)
+      if (event === 'SIGNED_IN' && session?.provider_token && session.user.app_metadata.provider === 'kakao') {
+        const { provider_token, provider_refresh_token } = session;
+        
+        await supabase
+          .from('profiles')
+          .update({
+            kakao_access_token: provider_token,
+            kakao_refresh_token: provider_refresh_token,
+          })
+          .eq('id', session.user.id);
+      }
+
       if (user) {
         const { profile, coupleId } = await fetchProfileAndCouple(user.id);
         set({ user, profile, coupleId, loading: false });
@@ -112,6 +130,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
+  signInWithGoogle: async () => {
+    return await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      }
+    });
+  },
+
+  signInWithKakao: async () => {
+    return await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          scope: 'talk_message friends'
+        }
+      }
+    });
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
     set({ user: null, profile: null, coupleId: null });
@@ -121,10 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user, profile } = get();
     if (!user || !profile) return { error: '로그인이 필요합니다.' };
 
-    console.log('[Connection] Attempting to connect with code:', partnerCode);
-
     try {
-      // 1. Find partner's profile
       const { data: partnerProfile, error: findError } = await supabase
         .from('profiles')
         .select('id')
@@ -144,7 +180,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { error: '본인의 코드는 입력할 수 없습니다.' };
       }
 
-      // 2. Check if a connection already exists (either A->B or B->A)
       const { data: existingCouple, error: checkError } = await supabase
         .from('couples')
         .select('id')
@@ -161,7 +196,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { error: null };
       }
 
-      // 3. Create new connection
       const { data: newCouple, error: createError } = await supabase
         .from('couples')
         .insert([
@@ -176,11 +210,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (!newCouple) {
-        // This might happen if RLS blocks it silently or unique constraint triggers
         return { error: '연결을 생성할 수 없습니다. 이미 연결 요청이 진행 중일 수 있습니다.' };
       }
 
-      console.log('[Connection] Successfully connected:', newCouple.id);
       set({ coupleId: newCouple.id });
       return { error: null };
 

@@ -7,9 +7,27 @@ export const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [isSent, setIsSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signInWithMagicLink, devBypassLogin } = useAuthStore();
+  const { signInWithMagicLink, signInWithGoogle, signInWithKakao, devBypassLogin } = useAuthStore();
 
   const isDev = import.meta.env.DEV;
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      alert('구글 로그인 중 오류가 발생했습니다: ' + error.message);
+      setLoading(false);
+    }
+  };
+
+  const handleKakaoLogin = async () => {
+    setLoading(true);
+    const { error } = await signInWithKakao();
+    if (error) {
+      alert('카카오 로그인 중 오류가 발생했습니다: ' + error.message);
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +46,7 @@ export const AuthPage = () => {
 
   return (
     <div className="min-h-screen bg-background-dark flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Dev Bypass Button - Moved to bottom and made more visible */}
+      {/* Dev Bypass Button */}
       {isDev && (
         <button
           onClick={() => devBypassLogin()}
@@ -98,10 +116,25 @@ export const AuthPage = () => {
               )}
             </button>
 
-            <div className="pt-4 flex flex-col gap-3">
-               <button type="button" className="w-full py-4 bg-white/5 border border-white/10 text-white rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-colors">
+            <div className="pt-4 flex flex-col gap-3 border-t border-white/10 mt-4">
+               <button 
+                type="button" 
+                onClick={handleKakaoLogin}
+                disabled={loading}
+                className="w-full py-4 bg-[#FEE500] text-[#191919] font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-[#FDE100] transition-colors disabled:opacity-50 shadow-lg"
+               >
+                  <img src="https://k.kakaocdn.net/14/dn/btroDszwNrM/Ji6P1jZ96zS7GfAnpS0891/o.jpg" className="w-5 h-5" alt="" />
+                  카카오로 시작하기
+               </button>
+
+               <button 
+                type="button" 
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full py-4 bg-white text-slate-900 font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-50 transition-colors disabled:opacity-50 border border-white/10"
+               >
                   <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="" />
-                  Google로 계속하기
+                  구글로 계속하기
                </button>
             </div>
           </form>

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   nickname TEXT,
   avatar_url TEXT,
   invite_code TEXT UNIQUE,
+  kakao_access_token TEXT,
+  kakao_refresh_token TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
