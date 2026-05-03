@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, MapPin, ExternalLink, Globe } from 'lucide-react';
-import { getLinkType, fetchRealOpenGraph } from '../utils/linkParser';
+import { fetchRealOpenGraph } from '../utils/linkParser';
 import type { LinkMetadata } from '../utils/linkParser';
 
 interface LinkPreviewProps {

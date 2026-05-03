@@ -48,4 +48,19 @@
    - `ActionButtons`: 수락/거절/보류 버튼 그룹
    - `LinkPreview`: URL 입력 시 렌더링되는 Rich Card 컴포넌트
 3. **Mock Data Flow:** 백엔드가 없어도 UI/UX를 완전히 테스트할 수 있도록 초기 상태(Initial State)가 담긴 Mock 데이터를 만들고 CRUD 및 상태 변경 로직을 구현할 것.
-4. **Output:** 각 단계를 완성할 때마다 완벽하게 작동하는 코드를 반환하고, Netlify 배포 시 문제가 없도록 `netlify.toml` 설정 파일(SPA 라우팅용)도 함께 제공할 것.
+4. Output: 각 단계를 완성할 때마다 완벽하게 작동하는 코드를 반환하고, Netlify 배포 시 문제가 없도록 `netlify.toml` 설정 파일(SPA 라우팅용)도 함께 제공할 것.
+
+## 5. Build & Deployment Hardening (Netlify CI/CD)
+
+### A. Critical Build Failure History (TypeScript Errors)
+Netlify 빌드 중 `tsc -b` 과정에서 발생하는 에러 리스트입니다. 코드 수정 시 반드시 주의해야 합니다.
+- **TS6133 (Unused Variables/Imports):** 선언되었으나 사용되지 않는 변수나 임포트가 있으면 빌드가 즉시 중단됩니다.
+  - `CalendarView.tsx`: `rows`, `days`, `day` 변수 미사용 에러.
+  - `LinkPreview.tsx`: `AnimatePresence`, `Loader2`, `getLinkType` 임포트 미사용 에러.
+- **Any Type Restriction:** `src/store/useAuthStore.ts` 등에서 `any` 타입을 사용할 경우 린트 에러가 발생하므로 명시적 타입을 지정해야 합니다.
+
+### B. Deployment Safety Rules
+1. **No Unused Code:** 사용하지 않는 변수, 함수, 임포트는 즉시 삭제합니다. (Netlify의 엄격한 빌드 옵션 때문)
+2. **Local Build Verification:** 모든 변경 사항을 제출하기 전, 로컬 환경에서 `npm run build`를 실행하여 `tsc` 에러가 없는지 반드시 확인합니다.
+3. **PGRST116 Handling:** Supabase `.single()` 호출 시 데이터가 없으면 에러가 발생하므로, 신규 유저 대응을 위해 가급적 `.maybeSingle()`을 사용하고 `null` 체크를 수행합니다.
+4. **Environment Variables:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`가 Netlify 환경 설정에 등록되어 있는지 확인합니다.
