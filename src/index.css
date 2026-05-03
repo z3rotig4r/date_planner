@@ -4,7 +4,9 @@
 
 @layer base {
   body {
-    @apply bg-background-light text-slate-900 font-sans antialiased transition-colors duration-300;
+    @apply bg-background-light text-slate-900 font-sans antialiased transition-colors duration-300 overflow-x-hidden;
+    word-break: keep-all;
+    overflow-wrap: break-word;
   }
   
   .dark body {

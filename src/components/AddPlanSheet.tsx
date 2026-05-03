@@ -45,7 +45,7 @@ export const AddPlanSheet = ({ isOpen, onClose }: AddPlanSheetProps) => {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] shadow-2xl z-[101] px-6 pt-2 pb-10 max-w-md mx-auto"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] shadow-2xl z-[101] px-6 pt-2 pb-10 max-w-md mx-auto max-h-[95vh] overflow-y-auto"
           >
             {/* Handle */}
             <div className="w-12 h-1.5 bg-slate-100 rounded-full mx-auto my-4" />

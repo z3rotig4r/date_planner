@@ -45,10 +45,10 @@ export const LinkPreview = ({ url }: LinkPreviewProps) => {
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors max-w-full overflow-hidden"
       >
-        <ExternalLink size={12} />
-        {url}
+        <ExternalLink size={12} className="flex-shrink-0" />
+        <span className="truncate">{url}</span>
       </a>
     );
   }
