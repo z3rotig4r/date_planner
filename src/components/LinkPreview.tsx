@@ -61,27 +61,30 @@ export const LinkPreview = ({ url, activityTitle }: LinkPreviewProps) => {
     );
   }
 
-  // 2. Thumbnail Fallback UI (Terminal Blue + Coral Gradient)
+  // 2. Thumbnail Fallback UI (Horizontal Layout)
   const renderThumbnail = () => {
     if (data.thumbnail) {
       return (
         <img
           src={data.thumbnail}
           alt={data.title}
-          className="w-20 h-20 object-cover rounded-2xl shadow-2xl transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
       );
     }
 
     return (
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] border border-slate-800 flex items-center justify-center relative overflow-hidden shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-tr from-primary-coral/10 to-transparent" />
+      <div className="w-full h-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
         {data.type === 'map' ? (
-          <MapPin size={32} className="text-primary-coral drop-shadow-[0_0_8px_rgba(255,107,107,0.4)]" />
+          <MapPin size={24} className="text-slate-300" />
         ) : data.type === 'instagram' ? (
-          <Camera size={32} className="text-primary-coral" />
+          <Camera size={24} className="text-slate-300" />
+        ) : data.type === 'youtube' ? (
+          <div className="text-rose-500 opacity-40">
+            <Globe size={24} />
+          </div>
         ) : (
-          <Globe size={32} className="text-slate-600" />
+          <Globe size={24} className="text-slate-200" />
         )}
       </div>
     );
@@ -94,37 +97,42 @@ export const LinkPreview = ({ url, activityTitle }: LinkPreviewProps) => {
       rel="noreferrer"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, scale: 1.01 }}
+      whileHover={{ y: -2, scale: 1.01 }}
       whileTap={{ scale: 0.99 }}
-      className="mt-4 block p-3 rounded-2xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-md hover:shadow-xl hover:border-primary-coral/20 transition-all group overflow-hidden cursor-pointer relative"
+      className="mt-3 flex items-stretch rounded-xl bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group overflow-hidden cursor-pointer"
     >
-      <div className="flex gap-4 items-center">
-        <div className="shrink-0 relative overflow-hidden rounded-xl">
-          {renderThumbnail()}
-        </div>
+      {/* Horizontal Image (Left) */}
+      <div className="w-24 min-h-[90px] shrink-0 bg-slate-50 dark:bg-slate-900 flex items-center justify-center relative overflow-hidden border-r border-slate-50 dark:border-slate-700">
+        {renderThumbnail()}
+      </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-              {data.siteName || (data.type === 'map' ? 'Naver Map' : 'Link')}
-            </span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate mb-1 leading-snug">
-            {data.title || activityTitle || '상세 정보 보기'}
-          </h4>
-          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-            {data.description || '네이버 지도에서 상세 정보를 확인하세요.'}
-          </p>
-          <p className="text-[9px] text-primary-coral font-medium mt-1 opacity-70 group-hover:opacity-100 transition-opacity">
+      {/* Content Area (Right) */}
+      <div className="flex-1 min-w-0 p-3 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+            {data.siteName || (data.type === 'map' ? 'Naver Map' : 'Link')}
+          </span>
+        </div>
+        
+        <h4 className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-tight mb-1 line-clamp-2">
+          {data.title || activityTitle || '상세 정보 보기'}
+        </h4>
+        
+        <p className="text-[10px] text-slate-500 line-clamp-1 opacity-80">
+          {data.description || '클릭하여 상세 정보를 확인하세요.'}
+        </p>
+
+        <div className="mt-1 flex items-center gap-1">
+          <Globe size={8} className="text-slate-300" />
+          <span className="text-[8px] text-slate-400 font-medium truncate">
             {new URL(url).hostname}
-          </p>
+          </span>
         </div>
+      </div>
 
-        <div className="shrink-0 ml-1">
-          <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center text-slate-300 group-hover:text-primary-coral group-hover:bg-primary-coral/5 transition-all">
-            <ExternalLink size={14} />
-          </div>
-        </div>
+      {/* Right Arrow Icon */}
+      <div className="w-8 shrink-0 flex items-center justify-center text-slate-200 group-hover:text-primary-coral transition-colors">
+        <ExternalLink size={12} />
       </div>
     </motion.a>
   );

@@ -16,27 +16,21 @@ export const handler: Handler = async (event) => {
     };
   }
 
-  console.log('[Preview] Processing:', url);
+  // SSRF Protection
+  if (url.includes('localhost') || url.includes('127.0.0.1')) {
+    return { statusCode: 403, body: JSON.stringify({ error: 'Blocked URL' }) };
+  }
 
   try {
-    // 1. Fast Cache Check
+    // 1. Cache Check
     if (supabase) {
       const { data: cached } = await supabase
-        .from('link_preview_cache')
+        .from('link_previews')
         .select('*')
         .eq('url', url)
         .maybeSingle();
 
-      const isGeneric = cached && (
-        cached.title.includes('네이버지도') || 
-        cached.title === '장소 정보' || 
-        cached.title === '네이버 지도' ||
-        cached.title === '상세 정보 보기' ||
-        !cached.title
-      );
-
-      if (cached && !isGeneric) {
-        console.log('[Preview] Cache Hit (Valid)');
+      if (cached && cached.title && cached.title !== '상세 정보 보기') {
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -45,118 +39,111 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    let title = '';
-    let image = '';
-    let description = '';
-    let siteName = '';
-
-    // 2. High-Speed Pin ID Extraction (No Redirect Wait)
-    const extractPinId = (str: string) => {
-      const decoded = decodeURIComponent(str);
-      const match = decoded.match(/(?:pinId|id|place\/|placeId=)(\d+)/);
-      return match ? match[1] : null;
+    let result = {
+      url,
+      title: '',
+      description: '',
+      image: '',
+      site_name: '',
+      type: 'og',
+      raw: {}
     };
 
-    let pinId = extractPinId(url);
-    const isNaverMap = url.includes('naver.com') || url.includes('naver.me');
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
 
-    // 3. Reliable Naver Map Extraction (Internal API First)
-    if (isNaverMap && pinId) {
-      console.log('[Preview] Naver Map detected, calling internal API for PinId:', pinId);
-      try {
-        const apiRes = await fetch(`https://map.naver.com/v5/api/sites/summary/${pinId}?lang=ko`, {
-          headers: {
-            'Referer': 'https://map.naver.com/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-          }
-        });
-        if (apiRes.ok) {
-          const apiData = await apiRes.json();
-          title = apiData.name || '';
-          description = apiData.fullAddress || apiData.address || apiData.category || '';
-          image = apiData.imageURL || (apiData.images && apiData.images[0]?.url) || '';
-          siteName = 'Naver Map';
-        }
-      } catch (e) {
-        console.error('[Preview] Naver Internal API failed');
+    // 2. Domain-Specific Routing
+    
+    // 2-A. YouTube
+    if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
+      const videoId = hostname.includes('youtu.be') 
+        ? urlObj.pathname.substring(1) 
+        : urlObj.searchParams.get('v');
+      
+      if (videoId) {
+        result.type = 'youtube';
+        result.title = 'YouTube 비디오';
+        result.image = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+        result.site_name = 'YouTube';
       }
     }
 
-    // 4. Fallback for naver.me without Pin ID (Follow redirect ONLY if needed)
-    if (isNaverMap && !title) {
-      console.log('[Preview] Following redirect for Naver link...');
-      try {
-        const res = await fetch(url, {
-          method: 'HEAD', // Faster than GET
-          headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1' },
-          redirect: 'follow',
-        });
-        const redirectedPinId = extractPinId(res.url);
-        if (redirectedPinId && redirectedPinId !== pinId) {
-          const apiRes = await fetch(`https://map.naver.com/v5/api/sites/summary/${redirectedPinId}?lang=ko`, {
+    // 2-B. Naver Map
+    if (hostname.includes('naver.com') || hostname.includes('naver.me')) {
+      const pinIdMatch = url.match(/(?:pinId|id|place\/|placeId=)(\d+)/);
+      let pinId = pinIdMatch ? pinIdMatch[1] : null;
+
+      if (!pinId && hostname.includes('naver.me')) {
+        // Short URL redirect for PinId
+        try {
+          const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+          const redirectedPinIdMatch = res.url.match(/(?:pinId|id|place\/|placeId=)(\d+)/);
+          pinId = redirectedPinIdMatch ? redirectedPinIdMatch[1] : null;
+        } catch (e) {}
+      }
+
+      if (pinId) {
+        try {
+          const apiRes = await fetch(`https://map.naver.com/v5/api/sites/summary/${pinId}?lang=ko`, {
             headers: { 'Referer': 'https://map.naver.com/' }
           });
           if (apiRes.ok) {
             const apiData = await apiRes.json();
-            title = apiData.name || title;
-            description = apiData.fullAddress || apiData.address || description;
-            image = apiData.imageURL || image;
-            siteName = 'Naver Map';
+            result.type = 'naver';
+            result.title = apiData.name || '';
+            result.description = apiData.fullAddress || apiData.address || '';
+            result.image = apiData.imageURL || (apiData.images && apiData.images[0]?.url) || '';
+            result.site_name = 'Naver Map';
+            result.raw = apiData;
           }
-        }
-      } catch (e) {
-        console.error('[Preview] Redirect flow failed');
+        } catch (e) {}
       }
     }
 
-    // 5. Microlink Fallback (Instagram / Others) - STRICT TIMEOUT
-    if (!title) {
-      console.log('[Preview] Calling Microlink...');
+    // 3. General OG Parsing Fallback
+    if (!result.title || !result.image) {
       try {
         const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 4000); // 4s strict timeout
+        const timeout = setTimeout(() => controller.abort(), 5000);
         const microRes = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`, { signal: controller.signal });
-        clearTimeout(id);
+        clearTimeout(timeout);
         
         const microData = await microRes.json();
         if (microData.status === 'success') {
-          title = microData.data.title || title;
-          image = microData.data.image?.url || microData.data.logo?.url || image;
-          description = microData.data.description || description;
-          siteName = microData.data.publisher || siteName;
+          const d = microData.data;
+          result.title = result.title || d.title || '';
+          result.description = result.description || d.description || '';
+          result.image = result.image || d.image?.url || d.logo?.url || '';
+          result.site_name = result.site_name || d.publisher || '';
+          result.type = 'og';
+          result.raw = d;
         }
       } catch (e) {
-        console.log('[Preview] Microlink skipped (timeout or error)');
+        console.error('[Preview] Microlink failed');
       }
     }
 
-    // Final Post-Processing
-    if (title) {
-      title = title.replace(/\s*:\s*네이버\s*지도/i, '').trim();
-      title = title.replace(/장소\s*-\s*/i, '').trim();
+    // 4. Ultimate Fallback
+    if (!result.title) {
+      result.title = hostname;
+      result.description = url;
+      result.image = `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+      result.type = 'fallback';
     }
 
-    const finalData = {
-      url,
-      title: (title && !title.includes('네이버 지도')) ? title : '장소 상세 보기',
-      description: description || '상세 정보를 확인하시려면 클릭하세요.',
-      image: image || null,
-      site_name: siteName || (isNaverMap ? 'Naver Map' : 'Link'),
-    };
+    // Post-Cleanup
+    result.title = result.title.replace(/\s*:\s*네이버\s*지도/i, '').trim();
+    result.title = result.title.replace(/장소\s*-\s*/i, '').trim();
 
-    // Async Cache Update
-    if (supabase && finalData.title !== '장소 상세 보기') {
-      supabase.from('link_preview_cache').upsert([finalData]).then();
+    // 5. Save to Cache
+    if (supabase && result.title && result.type !== 'fallback') {
+      supabase.from('link_previews').upsert([result]).then();
     }
 
     return {
       statusCode: 200,
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=3600'
-      },
-      body: JSON.stringify({ status: 'success', data: finalData }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ status: 'success', data: result }),
     };
 
   } catch (error) {
