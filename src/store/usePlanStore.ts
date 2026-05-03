@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Plan, PlanStatus } from '../types/plan';
 import { supabase } from '../services/supabaseClient';
 import { useAuthStore } from './useAuthStore';
+import { handleSupabaseError } from '../utils/errorMasking';
 
 interface PlanWithDate extends Plan {
   date: string;
@@ -39,7 +40,9 @@ export const usePlanStore = create<PlanState>((set, get) => ({
       .eq('couple_id', coupleId)
       .order('time', { ascending: true });
 
-    if (!error && data) {
+    if (error) {
+      handleSupabaseError(error, '계획 리스트를 가져오는데 실패했습니다.');
+    } else if (data) {
       set({ plans: data as PlanWithDate[] });
     }
     set({ loading: false });
@@ -59,7 +62,7 @@ export const usePlanStore = create<PlanState>((set, get) => ({
 
     if (error) {
       set({ plans: previousPlans });
-      console.error('Failed to update status:', error);
+      handleSupabaseError(error, '상태 변경에 실패했습니다.');
     }
   },
 
@@ -76,7 +79,7 @@ export const usePlanStore = create<PlanState>((set, get) => ({
 
     if (error) {
       set({ plans: previousPlans });
-      console.error('Failed to remove plan:', error);
+      handleSupabaseError(error, '계획 삭제에 실패했습니다.');
     }
   },
 
@@ -97,7 +100,7 @@ export const usePlanStore = create<PlanState>((set, get) => ({
       .insert([planToAdd]);
 
     if (error) {
-      console.error('Failed to add plan:', error);
+      handleSupabaseError(error, '계획 추가에 실패했습니다.');
     }
   },
 
