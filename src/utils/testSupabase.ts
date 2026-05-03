@@ -7,13 +7,30 @@ import { supabase } from '../services/supabaseClient';
 export const testSupabase = async () => {
   console.log('--- 🛡️ Supabase Security & Health Check ---');
 
-  // 1. Auth Session Check
-  const { data: { session }, error: authError } = await supabase.auth.getSession();
-  if (authError) {
-    console.error('❌ Auth Session Error:', authError.message);
-  } else {
-    console.log('✅ Auth Session:', session ? `Logged in as ${session.user.email}` : 'Not logged in');
+  // 0. Configuration Check
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  console.log('⚙️ Configuration Check:');
+  console.log('- URL:', url ? '✅ Configured' : '❌ Missing (Check .env)');
+  console.log('- Anon Key:', key ? '✅ Configured' : '❌ Missing (Check .env)');
+
+  if (!url || !key) {
+    console.error('🛑 Supabase configuration is missing. The client cannot connect.');
+    return;
   }
+
+  try {
+    console.log('⏳ Fetching session...');
+    // 1. Auth Session Check
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+
+    if (authError) {
+      console.error('❌ Auth Session Error:', authError.message);
+    } else {
+      console.log('✅ Auth Session:', session ? `Logged in as ${session.user.email}` : 'Not logged in');
+    }
+...
 
   const user = session?.user;
   if (!user) {
