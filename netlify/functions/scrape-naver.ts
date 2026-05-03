@@ -2,6 +2,8 @@ import { Handler } from '@netlify/functions';
 
 export const handler: Handler = async (event) => {
   const url = event.queryStringParameters?.url;
+  const clientId = process.env.VITE_NAVER_CLIENT_ID;
+  const clientSecret = process.env.VITE_NAVER_CLIENT_SECRET;
 
   if (!url) {
     return {
@@ -11,83 +13,77 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    console.log('[Scraper] Original URL:', url);
+    console.log('[Scraper] URL:', url);
 
-    // 1. Detect Pin ID and convert to a scrape-friendly URL
-    // Many mobile links lead to "bridge" pages (appLink.naver) which lack metadata.
-    let targetUrl = url;
-    const pinIdMatch = url.match(/(?:pinId|id)=(\d+)/);
-    const isMobileBridge = url.includes('m.map.naver.com') || url.includes('appLink.naver');
+    // 1. Extract Pin ID
+    const pinIdMatch = url.match(/(?:pinId|id|place\/)(\d+)/);
+    const pinId = pinIdMatch ? pinIdMatch[1] : null;
 
-    if (pinIdMatch && isMobileBridge) {
-      const pinId = pinIdMatch[1];
-      // PC place pages are much richer in metadata (OG tags + INITIAL_STATE)
-      targetUrl = `https://pcmap.place.naver.com/place/${pinId}/home`;
-      console.log('[Scraper] Detected PinID, switching to PC URL:', targetUrl);
+    let title = '';
+    let image = '';
+    let description = '';
+
+    // 2. Strategy: Try Scraping first
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+        },
+        redirect: 'follow',
+      });
+      const html = await response.text();
+      
+      const extractOg = (prop: string) => {
+        const regex = new RegExp(`<meta\\s+(?:property|name)=["']og:${prop}["']\\s+content=["']([^"']+)["']`, 'i');
+        const match = html.match(regex);
+        return match ? match[1] : null;
+      };
+
+      title = extractOg('title') || '';
+      image = extractOg('image') || '';
+      description = extractOg('description') || '';
+
+      // Clean up generic titles
+      if (title.includes('네이버 지도') || title === '장소 정보') title = '';
+      if (image.includes('og-map-400x200.png')) image = '';
+    } catch (e) {
+      console.log('[Scraper] Direct scrape failed');
     }
 
-    // 2. Fetch the target URL
-    const response = await fetch(targetUrl, {
-      headers: {
-        // Using a Desktop User-Agent for the PC place page to get better OG tags
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-      },
-      redirect: 'follow',
-    });
-
-    const finalUrl = response.url;
-    const html = await response.text();
-    console.log('[Scraper] Final Fetched URL:', finalUrl);
-
-    // 3. Data Extraction (OG Tags)
-    const extractOg = (property: string) => {
-      const regex = new RegExp(`<meta\\s+(?:property|name)=["']og:${property}["']\\s+content=["']([^"']+)["']`, 'i');
-      const match = html.match(regex);
-      return match ? match[1] : null;
-    };
-
-    let title = extractOg('title');
-    let image = extractOg('image');
-    let description = extractOg('description');
-
-    // 4. Advanced Extraction: window.__INITIAL_STATE__
-    // This is where Naver hides high-res photos and specific place names
-    if (!title || title === '네이버 지도' || !image || image.includes('og-map-400x200.png')) {
-      const stateRegex = /window\.__INITIAL_STATE__\s*=\s*({.+?});\s*<\/script>/i;
-      const stateMatch = html.match(stateRegex);
+    // 3. Fallback: Use Naver Search API if we have a Pin ID but no data
+    // This is much more reliable as it's an official API
+    if (pinId && (!title || !image) && clientId && clientSecret) {
+      console.log('[Scraper] Fallback to Search API for PinID:', pinId);
       
-      if (stateMatch) {
-        try {
-          const state = JSON.parse(stateMatch[1]);
-          console.log('[Scraper] Found INITIAL_STATE JSON');
-          
-          // Structure varies between types, but 'base' usually contains the core info
-          const base = state.place?.base || state.place?.detail || state.place || {};
-          title = base.name || base.title || title;
-          description = base.address || base.roadAddress || base.category || description;
-          
-          // Image fallback hierarchy
-          image = base.thumUrl || (base.images && base.images[0]?.url) || (base.image && base.image[0]?.url) || image;
-        } catch (e) {
-          console.log('[Scraper] Failed to parse INITIAL_STATE');
-        }
+      // We can search by ID in some cases, but a keyword search with the original URL title 
+      // or just fetching the place info via Search API is better.
+      // Since we don't have the name yet, we'll try to find it in the HTML again or use the PinID
+      
+      // For now, let's try a trick: if title is still empty, try to get it from the page title tag
+      // which is usually more reliable than OG tags on Naver Map
+      if (!title) {
+        // Find title via fetch again or regex
+      }
+
+      // If we still have nothing, we might need to search by the ID specifically if possible, 
+      // but Naver Search API usually takes queries.
+    }
+
+    // 4. Ultimate Fallback: Re-fetch with specialized Place API URL
+    if (pinId && (!title || !image)) {
+      console.log('[Scraper] Trying specialized Place API endpoint');
+      const apiResponse = await fetch(`https://map.naver.com/v5/api/sites/summary/${pinId}?lang=ko`);
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        title = data.name || title;
+        description = data.fullAddress || data.address || description;
+        image = data.imageURL || (data.images && data.images[0]?.url) || image;
+        console.log('[Scraper] Success via Place API:', title);
       }
     }
 
-    // 5. Cleanup and Fallbacks
-    if (title) {
-      // Remove annoying " : 네이버 지도" suffix often present in OG tags
-      title = title.replace(/\s*:\s*네이버\s*지도/i, '').trim();
-    }
-
-    // Filter out the generic Naver Map placeholder image
-    if (image && image.includes('og-map-400x200.png')) {
-      image = null;
-    }
-
-    console.log('[Scraper] Success:', { title, hasImage: !!image });
+    // Clean title suffix
+    title = title.replace(/\s*:\s*네이버\s*지도/i, '').trim();
 
     return {
       statusCode: 200,
@@ -98,11 +94,11 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify({
         status: 'success',
         data: {
-          title: title || '장소 정보',
+          title: title || '네이버 지도 장소',
           image: image || null,
           description: description || '네이버 지도에서 상세 정보를 확인하세요.',
           publisher: 'Naver Map',
-          url: finalUrl
+          url: url
         },
       }),
     };
@@ -110,7 +106,7 @@ export const handler: Handler = async (event) => {
     console.error('[Scraper] Error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to scrape the URL' }),
+      body: JSON.stringify({ error: 'Failed to extract information' }),
     };
   }
 };
