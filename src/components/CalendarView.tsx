@@ -68,10 +68,6 @@ export const CalendarView = () => {
     const startDate = startOfWeek(monthStart);
     const endDate = endOfWeek(monthEnd);
 
-    const rows = [];
-    let days = [];
-    let day = startDate;
-
     const allDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     return (
