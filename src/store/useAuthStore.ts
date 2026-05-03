@@ -121,34 +121,73 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user, profile } = get();
     if (!user || !profile) return { error: '로그인이 필요합니다.' };
 
-    const { data: partnerProfile, error: findError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('invite_code', partnerCode.toUpperCase())
-      .maybeSingle();
+    console.log('[Connection] Attempting to connect with code:', partnerCode);
 
-    if (findError || !partnerProfile) {
-      handleSupabaseError(findError, '유효하지 않은 코드입니다.');
-      return { error: '유효하지 않은 코드입니다.' };
+    try {
+      // 1. Find partner's profile
+      const { data: partnerProfile, error: findError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('invite_code', partnerCode.toUpperCase())
+        .maybeSingle();
+
+      if (findError) {
+        handleSupabaseError(findError, '상대방 정보를 찾는 중 오류가 발생했습니다.');
+        return { error: '상대방 정보를 찾는 중 오류가 발생했습니다.' };
+      }
+      
+      if (!partnerProfile) {
+        return { error: '유효하지 않은 코드입니다. 코드를 다시 확인해 주세요.' };
+      }
+      
+      if (partnerProfile.id === user.id) {
+        return { error: '본인의 코드는 입력할 수 없습니다.' };
+      }
+
+      // 2. Check if a connection already exists (either A->B or B->A)
+      const { data: existingCouple, error: checkError } = await supabase
+        .from('couples')
+        .select('id')
+        .or(`and(user_a_id.eq.${user.id},user_b_id.eq.${partnerProfile.id}),and(user_a_id.eq.${partnerProfile.id},user_b_id.eq.${user.id})`)
+        .maybeSingle();
+
+      if (checkError) {
+        handleSupabaseError(checkError, '기존 연결 확인 중 오류가 발생했습니다.');
+        return { error: '연결 상태를 확인하는 중 오류가 발생했습니다.' };
+      }
+
+      if (existingCouple) {
+        set({ coupleId: existingCouple.id });
+        return { error: null };
+      }
+
+      // 3. Create new connection
+      const { data: newCouple, error: createError } = await supabase
+        .from('couples')
+        .insert([
+          { user_a_id: user.id, user_b_id: partnerProfile.id }
+        ])
+        .select()
+        .maybeSingle();
+
+      if (createError) {
+        handleSupabaseError(createError, '커플 연결에 실패했습니다.');
+        return { error: '연결 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' };
+      }
+
+      if (!newCouple) {
+        // This might happen if RLS blocks it silently or unique constraint triggers
+        return { error: '연결을 생성할 수 없습니다. 이미 연결 요청이 진행 중일 수 있습니다.' };
+      }
+
+      console.log('[Connection] Successfully connected:', newCouple.id);
+      set({ coupleId: newCouple.id });
+      return { error: null };
+
+    } catch (err) {
+      console.error('[Connection] Unexpected error:', err);
+      return { error: '예기치 않은 오류가 발생했습니다.' };
     }
-    
-    if (partnerProfile.id === user.id) return { error: '본인의 코드는 입력할 수 없습니다.' };
-
-    const { data: newCouple, error: createError } = await supabase
-      .from('couples')
-      .insert([
-        { user_a_id: user.id, user_b_id: partnerProfile.id }
-      ])
-      .select()
-      .maybeSingle();
-
-    if (createError) {
-      handleSupabaseError(createError, '커플 연결에 실패했습니다.');
-      return { error: '이미 연결되었거나 오류가 발생했습니다.' };
-    }
-
-    set({ coupleId: newCouple.id });
-    return { error: null };
   },
 
   devBypassLogin: async () => {
