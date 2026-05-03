@@ -1,4 +1,4 @@
-export type LinkType = 'instagram' | 'map' | 'general' | 'unknown';
+export type LinkType = 'instagram' | 'map' | 'youtube' | 'general' | 'unknown';
 
 export interface LinkMetadata {
   type: LinkType;
@@ -22,9 +22,11 @@ export const getLinkType = (url: string): LinkType => {
   const instagramRegex = /(https?:\/\/)?(www\.)?instagram\.com\/.+/i;
   const naverMapRegex = /(https?:\/\/)?(map\.naver\.com|naver\.me|n\.news\.naver\.com)\/.+/i;
   const googleMapRegex = /(https?:\/\/)?(www\.)?(google\.com\/maps|goo\.gl\/maps)\/.+/i;
+  const youtubeRegex = /(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i;
 
   if (instagramRegex.test(url)) return 'instagram';
   if (naverMapRegex.test(url) || googleMapRegex.test(url)) return 'map';
+  if (youtubeRegex.test(url)) return 'youtube';
   if (url.startsWith('http')) return 'general';
   
   return 'unknown';
